@@ -1,0 +1,39 @@
+## Fill abundance mean for missing values where the number of samples is >3 
+
+import pandas as pd
+
+# Fill with mean values
+input_folder = 'multivariate_analysis.csv'
+output_folder = '/'
+raw_data = pd.read_csv(input_folder)
+for_filling = raw_data.copy()
+for_filling = pd.melt(
+    for_filling,
+    id_vars=['Sample Name'],
+    value_vars=[col for col in for_filling.columns if 'Sample Name' not in col],
+    var_name='sample',
+    value_name='abundance'
+)
+for_filling[['sample', 'replicate']] = for_filling['sample'].str.split('_', expand=True)
+
+filled = []
+for (protein, sample), df in for_filling.groupby(['Sample Name', 'sample']):
+    if len(df.dropna()) < 3:
+       continue
+    fill_val = df['abundance'].mean()
+    df['abundance'].fillna(fill_val, inplace=True)
+    filled.append(df)
+filled = pd.concat(filled)
+
+# pivot
+filled['sample'] = filled['sample'] + '_' + filled['replicate']
+filled = pd.pivot_table(
+    filled,
+    index='Sample Name',
+    columns='sample',
+    values='abundance'
+)
+
+filled.to_csv(f'{output_folder}filled_values_ref_norm.csv')
+
+
